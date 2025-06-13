@@ -10,6 +10,7 @@
 	<array>
 		<string>com.apple.dt.unit.iosBase</string>
 	</array>
+    
 	<key>Targets</key>
 	<array>
 		<dict>
@@ -62,6 +63,10 @@
 			<string>NO</string>
 			<key>EasyDevTheosPath</key>
 			<string>/opt/theos</string>
+			<key>EasyDevPath</key>
+			<string>/opt/EasyDev</string>
+			<key>EasyDevUseRootless</key>
+            <string>$(EasyDevUseRootless)</string>
 			<key>TARGETED_DEVICE_FAMILY</key>
 			<string>1,2</string>
 			<key>GCC_WARN_UNDECLARED_SELECTOR</key>
@@ -76,16 +81,14 @@
 			<string>gnu99</string>
 			<key>EXCLUDED_RECURSIVE_SEARCH_PATH_SUBDIRECTORIES</key>
 			<string>*.nib *.lproj *.gch (*) .DS_Store CVS .svn .git .hg *.xcodeproj *.xcode *.pbproj *.pbxproj</string>
-			<key>HEADER_SEARCH_PATHS</key>
-			<string>$(inherited) $(EasyDevPath)/include  $(EasyDevTheosPath)/include $(EasyDevTheosPath)/vendor/include</string>
-			<key>LIBRARY_SEARCH_PATHS</key>
-			<string>$(inherited) $(EasyDevPath)/lib $(EasyDevTheosPath)/lib $(EasyDevTheosPath)/vendor/lib</string>
-			<key>EasyDevPath</key>
-			<string>/opt/EasyDev</string>
 			<key>IPHONEOS_DEPLOYMENT_TARGET</key>
 			<string>8.0</string>
+			<key>HEADER_SEARCH_PATHS</key>
+			<string>$(inherited) $(EasyDevIncludePath)</string>
+			<key>LIBRARY_SEARCH_PATHS</key>
+			<string>$(inherited) $(EasyDevLibraryPath)</string>
 			<key>FRAMEWORK_SEARCH_PATHS</key>
-			<string>$(inherited) $(EasyDevPath)/lib $(EasyDevTheosPath)/lib $(EasyDevTheosPath)/vendor/lib</string>
+			<string>$(inherited) $(EasyDevFrameworkPath)</string>
 		</dict>
 		<key>SDK</key>
 		<string>iphoneos</string>
@@ -168,6 +171,64 @@
 			<string>___VARIABLE_bundleIdentifierPrefix:bundleIdentifier___.___VARIABLE_productName:RFC1034Identifier___</string>
 			<key>Type</key>
 			<string>static</string>
+		</dict>
+		<dict>
+			<key>Identifier</key>
+			<string>rootlessChoice</string>
+			<key>Required</key>
+			<true/>
+			<key>Name</key>
+			<string>Jailbreak Type:</string>
+			<key>Description</key>
+			<string>Choose the target jailbreak environment for your tweak.</string>
+			<key>SortOrder</key>
+			<integer>200</integer>
+			<key>Type</key>
+			<string>popup</string>
+			<key>Default</key>
+			<string>Rootfull</string>
+			<key>Values</key>
+			<array>
+				<string>Rootfull</string>
+				<string>Rootless</string>
+			</array>
+			<key>Units</key>
+			<dict>
+				<key>Rootfull</key>
+				<dict>
+					<key>Project</key>
+					<dict>
+						<key>SharedSettings</key>
+						<dict>
+							<key>EasyDevUseRootless</key>
+							<string>NO</string>
+							<key>HEADER_SEARCH_PATHS</key>
+							<string>$(inherited) $(EasyDevPath)/include $(EasyDevTheosPath)/include $(EasyDevTheosPath)/vendor/include</string>
+							<key>LIBRARY_SEARCH_PATHS</key>
+							<string>$(inherited) $(EasyDevPath)/lib $(EasyDevTheosPath)/lib $(EasyDevTheosPath)/vendor/lib</string>
+							<key>FRAMEWORK_SEARCH_PATHS</key>
+							<string>$(inherited) $(EasyDevPath)/lib $(EasyDevTheosPath)/lib $(EasyDevTheosPath)/vendor/lib</string>
+						</dict>
+					</dict>
+				</dict>
+				<key>Rootless</key>
+				<dict>
+					<key>Project</key>
+					<dict>
+						<key>SharedSettings</key>
+						<dict>
+							<key>EasyDevUseRootless</key>
+							<string>YES</string>
+							<key>HEADER_SEARCH_PATHS</key>
+							<string>$(inherited) $(EasyDevPath)/include $(EasyDevTheosPath)/include $(EasyDevTheosPath)/vendor/include</string>
+							<key>LIBRARY_SEARCH_PATHS</key>
+							<string>$(inherited) $(EasyDevPath)/lib/iphone/rootless $(EasyDevTheosPath)/lib/iphone/rootless $(EasyDevTheosPath)/vendor/lib/iphone/rootless</string>
+							<key>FRAMEWORK_SEARCH_PATHS</key>
+							<string>$(inherited) $(EasyDevPath)/lib/iphone/rootless $(EasyDevTheosPath)/lib/iphone/rootless $(EasyDevTheosPath)/vendor/lib/iphone/rootless</string>
+						</dict>
+					</dict>
+				</dict>
+			</dict>
 		</dict>
 	</array>
 	<key>Definitions</key>
