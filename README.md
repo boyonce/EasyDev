@@ -11,6 +11,7 @@
 * 去除了`MonkeyDev`自动集成class-dump、restore-symbol、Reveal、Cycript的功能
 * 支持开发第三方应用插件并与第三方应用联调
 * 集成一些常用的工具（可在终端中使用，不会集成到项目中）
+* 支持无根越狱(`Rootless`)
 
 ![](ScreenShots/QQ20221213-213954@2x.png)
 
