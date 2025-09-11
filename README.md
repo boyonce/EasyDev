@@ -52,8 +52,6 @@ sudo git clone --recursive https://github.com/lemon4ex/EasyDev.git /opt/EasyDev
 brew install ldid
 ```
 
-`/opt/EasyDev/bin`目录内已自带，也可不安装。
-
 ### 配置免密码登录越狱设备
 
 ```
