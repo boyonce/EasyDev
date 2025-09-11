@@ -15,6 +15,7 @@ export EasyDevPath="/opt/EasyDev"
 export DefaultDeviceIP="localhost"
 #默认端口号
 export DefaultDevicePort="2222"
+export DefaultEasyDevUseRootless="NO"
 
 export userName="${SUDO_USER-$USER}"
 export userGroup=`id -g $userName`
@@ -982,14 +983,15 @@ function xcodeBuildPhase() # no args
 	[[ $EasyDevDevicePort != "" ]] || \
 		EasyDevDevicePort="$DefaultDevicePort" && echo "use default devicePort $DefaultDevicePort"
 
+	#处理无根越狱
+	[[ $EasyDevUseRootless != "" ]] || \
+		EasyDevUseRootless="$DefaultEasyDevUseRootless" && echo "use default Rootless $DefaultEasyDevUseRootless"
+
 	#验证必要文件的存在
 	requireFile "$builtExecutable" false
 
 	#创建最后一个编译的符号链接
 	createSymlink "$builtProductsDir" "$latestBuildSymlink"
-
-	#处理无根越狱
-	requireExportedVariable "EasyDevUseRootless"
 
 	if [[ $EasyDevUseRootless == "YES" ]]; then
 		deviceBuildsDir="/var/jb/var/root/EasyDevBuilds"
