@@ -6,7 +6,7 @@ $setCmd
 export PATH=/opt/EasyDev/bin:$EasyDevTheosPath/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin:$PATH
 
 export scriptName="${0##*/}"
-export scriptVer="2.0"
+export scriptVer="2.1"
 export originalArguments=("$@")
 export activeActionArg
 
@@ -15,8 +15,7 @@ export EasyDevPath="/opt/EasyDev"
 export DefaultDeviceIP="localhost"
 #默认端口号
 export DefaultDevicePort="2222"
-
-export DefaultDeviceBuildsDir="/var/root/EasyDevBuilds"
+export DefaultEasyDevUseRootless="NO"
 
 export userName="${SUDO_USER-$USER}"
 export userGroup=`id -g $userName`
@@ -384,19 +383,17 @@ function getPackageFileNameUsingControlFile() # args: controlFile
 	$setCmd
 
 	local controlFile="$1"
-	# local pkgId
+	local pkgId
 	local pkgVer
 	local pkgArch
-	local name
+	local rootLess
 
-	# pkgId=`getControlFieldValue "$controlFile" Package true`
+	pkgId=`getControlFieldValue "$controlFile" Package true`
 	pkgVer=`getControlFieldValue "$controlFile" Version true`
 	pkgArch=`getControlFieldValue "$controlFile" Architecture true`
-	name=`getControlFieldValue "$controlFile" Name true`
 
 	# return #
-	# echo "${pkgId}_${pkgVer}_${pkgArch}"
-	echo "${name}_${pkgVer}_${pkgArch}"
+	echo "${pkgId}_${pkgVer}_${pkgArch}"
 }
 
 
@@ -455,13 +452,33 @@ function setControlFileVersionFieldUsingVersionPList() # args: controlFile, plis
 	echo "Done."
 }
 
+function setControlFileFieldValue() # args: controlFile, fieldName, fieldValue
+{
+	local controlFile="$1"
+	local fieldName="$2"
+	local fieldValue="$3"
+
+	requireFile "$controlFile" false
+
+	# write version to control file	#
+
+	echo -n "Setting control file $controlFile $fieldName field to $fieldValue ... "
+
+	sed -i "" "s/$fieldName:.*/$fieldName: $fieldValue/g" "$controlFile" || \
+		panic $? "Failed."
+
+	# success #
+	echo "Done."
+} 
+
 #打包
-function buildPackage() # args: packageDir, outputDir, versionPList [, useZOption]
+function buildPackage() # args: packageDir, outputDir, versionPList [, useRootless, useZOption]
 {
 	local packageDir="$1"
 	local outputDir="$2"
 	local versionPList="$3"
-	local useZOption="$4"
+	local useRootless="$4"
+	local useZOption="$5"
 	local subFileControlTxtToRemove="$packageDir/DEBIAN/control.txt"
 	local subFilesToRemove=(".DS_Store" "0xdeadfa11")
 	local packageFileName
@@ -503,13 +520,19 @@ function buildPackage() # args: packageDir, outputDir, versionPList [, useZOptio
 	[[ "$versionPList" == "" ]] || \
 		setControlFileVersionFieldUsingVersionPList "$packageDir/DEBIAN/control" "$versionPList"
 
+    if [[ $useRootless == "true" ]]; then
+        setControlFileFieldValue "$packageDir/DEBIAN/control" "Architecture" "iphoneos-arm64"
+	else
+		setControlFileFieldValue "$packageDir/DEBIAN/control" "Architecture" "iphoneos-arm"
+    fi
+
 	# determine package name #
 
 	packageName=`getPackageFileNameUsingControlFile "$packageDir/DEBIAN/control"`
 
 	# create package #
 
-	createDebianPackage "$packageDir" "$packageName" "$outputDir"
+	createDebianPackage "$packageDir" "$packageName" $useRootless "$outputDir"
 
 	# create zip #
 
@@ -534,13 +557,14 @@ function buildPackage() # args: packageDir, outputDir, versionPList [, useZOptio
 }
 
 #创建deb
-function createDebianPackage() # args: sourceDir, packageName [, outputDir]
+function createDebianPackage() # args: sourceDir, packageName, useRootless [, outputDir]
 {
 	$setCmd
 
 	local sourceDir="$1"
 	local packageName="$2"
-	local outputDir="$3"
+	local useRootless="$3"
+	local outputDir="$4"
 
 	local packageFile="${outputDir:-.}/$packageName.deb"
 
@@ -548,8 +572,26 @@ function createDebianPackage() # args: sourceDir, packageName [, outputDir]
 
 	local tempDir="`getTempDir`"
 
-	createTarForDebianPackage "$sourceDir/DEBIAN" "$tempDir" "control" "-n"
-	createTarForDebianPackage "$sourceDir" "$tempDir" "data" "--exclude" "DEBIAN/*" "--exclude" "DEBIAN"
+	if [[ $useRootless == "true" ]]; then
+		# 复制要安装的目标到构建目录
+		local tempPackageDir="$tempDir/Package"
+		local tempJbDir="$tempPackageDir/var/jb"
+
+		# 如果目录不存在则创建
+		if [ ! -d "$tempJbDir" ]; then
+			mkdir -p "$tempJbDir"
+		fi
+
+		rsync -a --exclude="DEBIAN" "$sourceDir/" "$tempJbDir/"
+
+		# 按有根或无根模式复制到编译目录下, 复制时排除DEBIAN目录
+		createTarForDebianPackage "$sourceDir/DEBIAN" "$tempDir" "control" "-n"
+		createTarForDebianPackage "$tempPackageDir" "$tempDir" "data" "--exclude" "DEBIAN/*" "--exclude" "DEBIAN"
+	else 
+		# 打包有根越狱deb
+		createTarForDebianPackage "$sourceDir/DEBIAN" "$tempDir" "control" "-n"
+		createTarForDebianPackage "$sourceDir" "$tempDir" "data" "--exclude" "DEBIAN/*" "--exclude" "DEBIAN"
+	fi
 
 	echo "2.0" > "$tempDir/debian-binary" || \
 		panic $? "Failed to create debian-binary file"
@@ -560,31 +602,33 @@ function createDebianPackage() # args: sourceDir, packageName [, outputDir]
 	echo "Done."
 }
 
-#创建tar.gz
-function createTarForDebianPackage() # args: sourceDir, outputDir, tarName [, options]
+# 创建tar.gz
+function createTarForDebianPackage() # args: sourceDir, outputDir, tarName, [, options]
 {
-	$setCmd
+    $setCmd
 
-	local sourceDir="$1"
-	local outputDir="$2"
-	local tarName="$3"
-	shift 3
+    local sourceDir="$1"
+    local outputDir="$2"
+    local tarName="$3"
+    shift 3
 
-	pushd "$sourceDir" 1> /dev/null
+    pushd "$sourceDir" 1> /dev/null
 
-	tar -cLpz --disable-copyfile --exclude ".*" "$@" -f "$outputDir/$tarName.tar.gz" * || \
-		panic $? "Failed to create $tarName archive"
+    tar -cLpz --disable-copyfile --exclude ".*" "$@" -f "$outputDir/$tarName.tar.gz" * || \
+            panic $? "Failed to create $tarName archive"
 
-	popd 1> /dev/null
+    popd 1> /dev/null
 }
 
+
 #deb包管理
-function managePackageOnDevice() # args: manageAction, packageFileOrName, hostAddress, hostPort
+function managePackageOnDevice() # args: manageAction, packageFileOrName, hostAddress, hostPort, useRootless
 {
 	local manageAction="$1"
 	local packageFileOrName="$2"
 	local hostAddress="$3"
 	local hostPort="$4"
+	local useRootless="$5"
 	local doingWhat
 	local direction
 	local didWhat
@@ -634,7 +678,11 @@ function managePackageOnDevice() # args: manageAction, packageFileOrName, hostAd
 
 		requireFile "$packageFileOrName" false
 
-		devicePackagesDir="/var/root/EasyDevPackages"
+		if [[ "$useRootless" == "true" ]]; then
+			devicePackagesDir="/var/jb/var/root/EasyDevPackages"
+		else
+			devicePackagesDir="/var/root/EasyDevPackages"
+		fi
 
 		copyFileToDevice "$packageFileOrName" "$devicePackagesDir" "$hostAddress" "$hostPort"
 
@@ -866,6 +914,21 @@ function xcodeBuildPhase_Logos() # no args
 	echo "Xcode Build Phase for Logos Processor complete."
 }
 
+function addExecutableRPath() # binary, rpath
+{
+    local binary="$1"
+    local rpath="$2"
+    
+    local output 
+	local exit_code
+    output=$(install_name_tool -add_rpath "$rpath" "$binary" 2>&1) || true
+    exit_code=$?
+
+    # 成功或重复路径都返回成功
+    [[ $exit_code -eq 0 ]] || [[ "$output" == *"would duplicate path"* ]] || \
+        panic $exit_code "Failed to add RPATH: $rpath"
+}
+
 #  --xcbp
 function xcodeBuildPhase() # no args
 {
@@ -896,6 +959,8 @@ function xcodeBuildPhase() # no args
 	local stripOption
 	local versionPListPath
 	local packageFileName
+	local useRootless
+	local deviceBuildsDir
 
 	#目标文件路径
 	local packageInstallSource
@@ -918,8 +983,9 @@ function xcodeBuildPhase() # no args
 	[[ $EasyDevDevicePort != "" ]] || \
 		EasyDevDevicePort="$DefaultDevicePort" && echo "use default devicePort $DefaultDevicePort"
 
-	[[ $EasyDevDeviceBuildsDir != "" ]] || \
-		EasyDevDeviceBuildsDir="$DefaultDeviceBuildsDir" && echo "use default buildsDir $DefaultDeviceBuildsDir"
+	#处理无根越狱
+	[[ $EasyDevUseRootless != "" ]] || \
+		EasyDevUseRootless="$DefaultEasyDevUseRootless" && echo "use default Rootless $DefaultEasyDevUseRootless"
 
 	#验证必要文件的存在
 	requireFile "$builtExecutable" false
@@ -927,6 +993,20 @@ function xcodeBuildPhase() # no args
 	#创建最后一个编译的符号链接
 	createSymlink "$builtProductsDir" "$latestBuildSymlink"
 
+	if [[ $EasyDevUseRootless == "YES" ]]; then
+		deviceBuildsDir="/var/jb/var/root/EasyDevBuilds"
+		addExecutableRPath "$builtExecutable" "/var/jb/Library/Frameworks"
+		addExecutableRPath "$builtExecutable" "/var/jb/usr/lib"
+		addExecutableRPath "$builtExecutable" "@loader_path/.jbroot/Library/Frameworks"
+		addExecutableRPath "$builtExecutable" "@loader_path/.jbroot/usr/lib"
+		install_name_tool -change /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate @rpath/CydiaSubstrate.framework/CydiaSubstrate "$builtExecutable"
+	else
+		deviceBuildsDir="/var/root/EasyDevBuilds"
+	fi
+
+	[[ $EasyDevDeviceBuildsDir != "" ]] || \
+		EasyDevDeviceBuildsDir="$deviceBuildsDir" && echo "use default buildsDir $deviceBuildsDir"
+		
 	#如果是Profile，strip可执行文件
 	if [[ "$CONFIGURATION" == "Release" && "$VALIDATE_PRODUCT" == "YES" ]]; then
 		if [[ "$STRIP_INSTALLED_PRODUCT" == "YES" ]]; then
@@ -994,10 +1074,12 @@ function xcodeBuildPhase() # no args
 		#拷贝目标文件到/Package/Library/MobileSubstrate/DynamicLibraries
 		copyFile "$packageInstallSource" "$packageInstallPath"
 
+		useRootless=$([[ "$EasyDevUseRootless" == "YES" ]] && echo "true" || echo "false")
+
 		if [[ "$EasyDevBuildZipPackageOnProfiling" == "YES" && "$CONFIGURATION" == "Release" && "$VALIDATE_PRODUCT" == "YES" ]] || [[ "$EasyDevBuildZipPackageOnAnyBuild" == "YES" ]]; then
-			buildPackage "$packageDirectory" "$allPackagesDir" "$versionPListPath" true
+			buildPackage "$packageDirectory" "$allPackagesDir" "$versionPListPath" $useRootless true
 		else
-			buildPackage "$packageDirectory" "$allPackagesDir" "$versionPListPath" false
+			buildPackage "$packageDirectory" "$allPackagesDir" "$versionPListPath" $useRootless false
 		fi
 
 		#profile或者用户设置了build安装
@@ -1012,7 +1094,7 @@ function xcodeBuildPhase() # no args
 				packageFileName="`getPackageFileNameUsingControlFile \"$packageDirectory/DEBIAN/control\"`.deb"
 
 				# install package on device #
-				managePackageOnDevice "install" "$allPackagesDir/$packageFileName" "$EasyDevDeviceIP" "$EasyDevDevicePort"
+				managePackageOnDevice "install" "$allPackagesDir/$packageFileName" "$EasyDevDeviceIP" "$EasyDevDevicePort" $useRootless
 
 				if [[ "$EasyDevKillProcessOnInstall" == "YES" && "$EasyDevKillProcessName" != "" ]]; then
 

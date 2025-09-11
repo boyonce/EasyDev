@@ -1,11 +1,5 @@
 EASYDEV_PATH="/opt/EasyDev"
 
-# temp path
-TEMP_PATH="${SRCROOT}/${TARGET_NAME}/tmp"
-
-# monkeyparser
-# MONKEYPARSER="${EASYDEV_PATH}/bin/monkeyparser"
-
 # create ipa script
 CREATE_IPA="${EASYDEV_PATH}/bin/createIPA.command"
 
@@ -14,9 +8,6 @@ BUILD_APP_PATH="${BUILT_PRODUCTS_DIR}/${TARGET_NAME}.app"
 
 # default demo app
 DEMO_TARGET_APP_PATH="${EASYDEV_PATH}/resource/iOS.app"
-
-# link framework path
-# FRAMEWORKS_TO_INJECT_PATH="${EASYDEV_PATH}/frameworks/"
 
 # target app placed
 TARGET_APP_PUT_PATH="${SRCROOT}/${TARGET_NAME}/TargetApp"
@@ -56,14 +47,6 @@ function checkApp(){
 	rm -rf "${TARGET_APP_PATH}/com.apple.WatchPlaceholder" || true
 
 	/usr/libexec/PlistBuddy -c 'Delete UISupportedDevices' "${TARGET_APP_PATH}/Info.plist" 2>/dev/null
-
-	# VERIFY_RESULT=`export EASYDEV_CLASS_DUMP=${EASYDEV_CLASS_DUMP};EASYDEV_RESTORE_SYMBOL=${EASYDEV_RESTORE_SYMBOL};"$MONKEYPARSER" verify -t "${TARGET_APP_PATH}" -o "${SRCROOT}/${TARGET_NAME}"`
-
-	# if [[ $? -eq 16 ]]; then
-	#   	panic 1 "${VERIFY_RESULT}"
-	# else
-	#   	echo "${VERIFY_RESULT}"
-	# fi
 }
 
 function codesignFramework() {
@@ -97,32 +80,9 @@ function pack(){
 	CURRENT_EXECUTABLE=$(/usr/libexec/PlistBuddy -c "Print CFBundleExecutable" "${TARGET_INFO_PLIST}" 2>/dev/null)
 	CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "${TARGET_INFO_PLIST}" 2>/dev/null)
 
-	# create tmp dir
-	rm -rf "${TEMP_PATH}" || true
-	mkdir -p "${TEMP_PATH}" || true
-
 	# latestbuild
 	ln -fhs "${BUILT_PRODUCTS_DIR}" "${PROJECT_DIR}"/LatestBuild
 	cp -rf "${CREATE_IPA}" "${PROJECT_DIR}"/LatestBuild/
-
-	# deal ipa or app
-	TARGET_APP_PATH=$(find "${SRCROOT}/${TARGET_NAME}" -type d | grep "\.app$" | head -n 1)
-	TARGET_IPA_PATH=$(find "${SRCROOT}/${TARGET_NAME}" -type f | grep "\.ipa$" | head -n 1)
-
-	if [[ ${TARGET_APP_PATH} ]]; then
-		cp -rf "${TARGET_APP_PATH}" "${TARGET_APP_PUT_PATH}"
-	fi
-
-	# if [[ ! ${TARGET_APP_PATH} ]] && [[ ! ${TARGET_IPA_PATH} ]] && [[ ${EASYDEV_TARGET_APP} != "Optional" ]]; then
-	# 	echo "pulling decrypted ipa from jailbreak device......."
-	# 	PYTHONIOENCODING=utf-8 ${EASYDEV_PATH}/bin/dump.py ${EASYDEV_TARGET_APP} -o "${TARGET_APP_PUT_PATH}/TargetApp.ipa" || panic 1 "dump.py error"
-	# 	TARGET_IPA_PATH=$(find "${TARGET_APP_PUT_PATH}" -type f | grep "\.ipa$" | head -n 1)
-	# fi
-
-	if [[ ! ${TARGET_APP_PATH} ]] && [[ ${TARGET_IPA_PATH} ]]; then
-		unzip -oqq "${TARGET_IPA_PATH}" -d "${TEMP_PATH}"
-		cp -rf "${TEMP_PATH}/Payload/"*.app "${TARGET_APP_PUT_PATH}"
-	fi
 	
 	if [ -f "${BUILD_APP_PATH}/embedded.mobileprovision" ]; then
 		mv "${BUILD_APP_PATH}/embedded.mobileprovision" "${BUILD_APP_PATH}"/..
@@ -175,14 +135,9 @@ function pack(){
 
 	if [[ ${EASYDEV_INSERT_DYLIB} == "YES" ]];then
 		cp -rf "${BUILT_PRODUCTS_DIR}/lib""${TARGET_NAME}"".dylib" "${TARGET_APP_FRAMEWORKS_PATH}"
-		# cp -rf "${FRAMEWORKS_TO_INJECT_PATH}" "${TARGET_APP_FRAMEWORKS_PATH}"
 		if [[ ${EASYDEV_ADD_SUBSTRATE} == "YES" ]];then
 			cp -rf "${EASYDEV_PATH}/lib/libsubstrate.dylib" "${TARGET_APP_FRAMEWORKS_PATH}/libsubstrate.dylib"
 		fi
-		# if isRelease; then
-		# 	rm -rf "${TARGET_APP_FRAMEWORKS_PATH}"/RevealServer.framework
-		# 	rm -rf "${TARGET_APP_FRAMEWORKS_PATH}"/libcycript*
-		# fi
 	fi
 
 	if [[ -d "$SRCROOT/${TARGET_NAME}/Resources" ]]; then

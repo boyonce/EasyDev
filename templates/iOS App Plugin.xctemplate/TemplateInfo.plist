@@ -214,6 +214,52 @@
 				</dict>
 			</dict>
 		</dict>
+		<dict>
+			<key>Identifier</key>
+			<string>rootlessChoice</string>
+			<key>Required</key>
+			<true/>
+			<key>Name</key>
+			<string>Jailbreak Type:</string>
+			<key>Description</key>
+			<string>Choose the target jailbreak environment for your tweak.</string>
+			<key>SortOrder</key>
+			<integer>200</integer>
+			<key>Type</key>
+			<string>popup</string>
+			<key>Default</key>
+			<string>Rootfull</string>
+			<key>Values</key>
+			<array>
+				<string>Rootfull</string>
+				<string>Rootless</string>
+			</array>
+			<key>Variables</key>
+			<dict>
+				<key>Rootfull</key>
+				<dict>
+					<key>EasyDevUseRootless</key>
+					<string>NO</string>
+					<key>EasyDevIncludePath</key>
+					<string>$(inherited) $(EasyDevPath)/include $(EasyDevTheosPath)/include $(EasyDevTheosPath)/vendor/include</string>
+					<key>EasyDevLibraryPath</key>
+					<string>$(inherited) $(EasyDevPath)/lib $(EasyDevTheosPath)/lib $(EasyDevTheosPath)/vendor/lib</string>
+					<key>EasyDevFrameworkPath</key>
+					<string>$(inherited) $(EasyDevPath)/lib $(EasyDevTheosPath)/lib $(EasyDevTheosPath)/vendor/lib</string>
+				</dict>
+				<key>Rootless</key>
+				<dict>
+					<key>EasyDevUseRootless</key>
+					<string>YES</string>
+					<key>EasyDevIncludePath</key>
+					<string>$(inherited) $(EasyDevPath)/include $(EasyDevTheosPath)/include $(EasyDevTheosPath)/vendor/include</string>
+					<key>EasyDevLibraryPath</key>
+					<string>$(inherited) $(EasyDevPath)/lib/iphone/rootless $(EasyDevTheosPath)/lib/iphone/rootless $(EasyDevTheosPath)/vendor/lib/iphone/rootless</string>
+					<key>EasyDevFrameworkPath</key>
+					<string>$(inherited) $(EasyDevPath)/lib/iphone/rootless $(EasyDevTheosPath)/lib/iphone/rootless $(EasyDevTheosPath)/vendor/lib/iphone/rootless</string>
+				</dict>
+			</dict>
+		</dict>
 	</array>
 	<key>Project</key>
 	<dict>
